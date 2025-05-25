@@ -1,10 +1,9 @@
-# cofredigitaltcpudp/servidor/tcp_servidor.py
 import socket
 import threading
 import json
 import time
 from cofredigitaltcpudp.servidor.udp_saldo_servidor import servidor_udp_saldo
-from cofredigitaltcpudp.Utils.dados import USUARIOS
+from cofredigitaltcpudp.Utils.dados import USUARIOS, salvar_usuarios
 
 CLIENTES_AUTENTICADOS = {}
 
@@ -17,7 +16,8 @@ def enviar_udp(mensagem):
 
 def tratar_cliente(conn, addr):
     usuario = None
-    conn.send(b"Bem-vindo! Realize seu login com seu usuario e senha.\n")
+    conn.send(b"Bem-vindo! Digite 'login' ou 'cadastrar' para continuar.\n")
+    print(f"[TCP] Cliente conectado: {addr}")
 
     while True:
         try:
@@ -36,8 +36,17 @@ def tratar_cliente(conn, addr):
                         conn.send(b"Login bem-sucedido!\n")
                     else:
                         conn.send(b"Credenciais invalidas.\n")
-                else:
-                    conn.send(b"Autentique-se primeiro.\n")
+
+                elif msg["comando"] == "cadastrar":
+                    u = msg["usuario"]
+                    s = msg["senha"]
+                    if u in USUARIOS:
+                        conn.send(b"Usuario ja existe.\n")
+                    else:
+                        USUARIOS[u] = {"senha": s, "saldo": 1000}
+                        usuario = u  
+                        CLIENTES_AUTENTICADOS[conn] = u
+                        conn.sendall(b"Cadastro realizado com sucesso! Voce ja esta logado.\n")
             else:
                 if msg["comando"] == "abrir_cofre":
                     resposta = f"{usuario} abriu o cofre em {time.ctime()}"
@@ -53,6 +62,7 @@ def tratar_cliente(conn, addr):
                     else:
                         USUARIOS[usuario]["saldo"] -= valor
                         USUARIOS[destino]["saldo"] += valor
+                        salvar_usuarios(USUARIOS)
                         conn.send(b"Transferencia realizada.\n")
                         enviar_udp(f"NOTIFICACAO: {usuario} transferiu {valor} para {destino} em {time.ctime()}")
                 else:
