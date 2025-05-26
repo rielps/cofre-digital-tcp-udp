@@ -1,28 +1,37 @@
-# cofredigitaltcpudp/servidor/udp_saldo_servidor.py
 import socket
-from cofredigitaltcpudp.Utils.dados import USUARIOS
+from cofredigitaltcpudp.Utils.dados import carregar_usuarios
 
 def servidor_udp_saldo():
     HOST = "127.0.0.1"
-    PORT = 9998
+    PORT = 9992
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((HOST, PORT))
     print(f"[UDP SALDO] Escutando em {HOST}:{PORT}")
 
-    while True:
-        data, addr = sock.recvfrom(1024)
-        mensagem = data.decode()
-        partes = mensagem.strip().split(";")
+    try:
+        while True:
+            data, addr = sock.recvfrom(1024)
+            mensagem = data.decode()
+            partes = mensagem.strip().split(";")
 
-        if len(partes) != 2:
-            resposta = "erro;Formato inválido. Use usuario;senha"
-        else:
-            usuario, senha = partes
-            if usuario in USUARIOS and USUARIOS[usuario]["senha"] == senha:
-                saldo = USUARIOS[usuario]["saldo"]
-                resposta = f"saldo;{usuario};{saldo}"
+            if len(partes) != 2:
+                resposta = "erro;Formato inválido. Use usuario;senha"
             else:
-                resposta = "erro;Credenciais inválidas"
+                usuario, senha = partes
+                usuarios = carregar_usuarios()  # <-- carrega dados atualizados
 
-        sock.sendto(resposta.encode(), addr)
+                if usuario in usuarios and usuarios[usuario]["senha"] == senha:
+                    saldo = usuarios[usuario]["saldo"]
+                    resposta = f"saldo;{usuario};{saldo}"
+                else:
+                    resposta = "erro;Credenciais inválidas"
+
+            sock.sendto(resposta.encode(), addr)
+    except KeyboardInterrupt:
+        print("\n[UDP SALDO] Servidor finalizado pelo usuário.")
+    finally:
+        sock.close()
+
+if __name__ == "__main__":
+    servidor_udp_saldo()
